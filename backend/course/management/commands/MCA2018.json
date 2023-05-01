@@ -4,6 +4,7 @@
     "extra": [
         {
             "name": "Lab",
+            "isElective": false,
             "courses": [
                 {
                     "code": "18CA381",
@@ -81,6 +82,7 @@
         },
         {
             "name": "Elective I",
+            "isElective": true,
             "courses": [
                 {
                     "code": "18CA313",
@@ -158,6 +160,7 @@
         },
         {
             "name": "Elective II",
+            "isElective": true,
             "courses": [
                 {
                     "code": "18CA431",
@@ -235,6 +238,7 @@
         },
         {
             "name": "Elective III",
+            "isElective": true,
             "courses": [
                 {
                     "code": "18CA452",
@@ -312,6 +316,7 @@
         },
         {
             "name": "Elective IV",
+            "isElective": true,
             "courses": [
                 {
                     "code": "18HU433",
@@ -409,7 +414,8 @@
                     "C": 0
                 }
             ],
-            "extra": []
+            "extra": [],
+            "courseLabs": []
         },
         {
             "sem": 2,
@@ -465,7 +471,8 @@
             ],
             "extra": [
                 "Lab"
-            ]
+            ],
+            "courseLabs": []
         },
         {
             "sem": 3,
@@ -529,7 +536,8 @@
             ],
             "extra": [
                 "Lab"
-            ]
+            ],
+            "courseLabs": []
         },
         {
             "sem": 4,
@@ -579,7 +587,8 @@
                 "Lab",
                 "Elective I",
                 "Elective II"
-            ]
+            ],
+            "courseLabs": []
         },
         {
             "sem": 5,
@@ -614,7 +623,8 @@
                 "Lab",
                 "Elective III",
                 "Elective IV"
-            ]
+            ],
+            "courseLabs": []
         },
         {
             "sem": 6,
@@ -628,7 +638,8 @@
                     "C": 12
                 }
             ],
-            "extra": []
+            "extra": [],
+            "courseLabs": []
         }
     ]
 }

@@ -31,9 +31,11 @@ export type BatchInfoType = {
 export type BatchType = {
   __typename?: 'BatchType';
   curriculum?: Maybe<CurriculumType>;
-  extra?: Maybe<Array<Maybe<Scalars['String']>>>;
+  extraCourseLeftToAssign?: Maybe<Scalars['Int']>;
   id?: Maybe<Scalars['ID']>;
+  selectedExtraCourses?: Maybe<Array<Maybe<ExtraCourseType>>>;
   sem?: Maybe<Scalars['Int']>;
+  semesterExtraCourses?: Maybe<Array<Maybe<Scalars['String']>>>;
   year?: Maybe<Scalars['Int']>;
 };
 
@@ -58,6 +60,11 @@ export type CourseInput = {
   name: Scalars['String'];
 };
 
+export type CourseLabInput = {
+  courseCode: Scalars['String'];
+  labCode: Scalars['String'];
+};
+
 export type CourseLabType = {
   __typename?: 'CourseLabType';
   course?: Maybe<CourseType>;
@@ -71,6 +78,7 @@ export type CourseType = {
   credit?: Maybe<Scalars['Int']>;
   hours?: Maybe<Scalars['Int']>;
   id?: Maybe<Scalars['ID']>;
+  isExtra?: Maybe<Scalars['Boolean']>;
   l?: Maybe<Scalars['Int']>;
   name?: Maybe<Scalars['String']>;
   p?: Maybe<Scalars['Int']>;
@@ -102,8 +110,26 @@ export type CurriculumUploadType = {
   year?: Maybe<Scalars['Int']>;
 };
 
+export type DeleteCurriculumUpload = {
+  __typename?: 'DeleteCurriculumUpload';
+  response?: Maybe<Scalars['Boolean']>;
+};
+
+export type ExtraCourseType = {
+  __typename?: 'ExtraCourseType';
+  code?: Maybe<Scalars['String']>;
+  courseType?: Maybe<Scalars['String']>;
+  credit?: Maybe<Scalars['Int']>;
+  hours?: Maybe<Scalars['Int']>;
+  l?: Maybe<Scalars['Int']>;
+  name?: Maybe<Scalars['String']>;
+  p?: Maybe<Scalars['Int']>;
+  t?: Maybe<Scalars['Int']>;
+};
+
 export type ExtraInput = {
   courses: Array<InputMaybe<CourseInput>>;
+  isElective: Scalars['Boolean'];
   name: Scalars['String'];
 };
 
@@ -123,9 +149,16 @@ export type IdentfierInput = {
 
 export type Mutation = {
   __typename?: 'Mutation';
+  deleteCurriculumUpload?: Maybe<DeleteCurriculumUpload>;
   updateUser?: Maybe<UpdateUser>;
   updateWorkload?: Maybe<UpdateWorkload>;
   uploadCurriculum?: Maybe<UploadCurriculum>;
+  verifyCurriculumUpload?: Maybe<VerifyCurriculumUpload>;
+};
+
+
+export type MutationDeleteCurriculumUploadArgs = {
+  curriculumUploadID: Scalars['ID'];
 };
 
 
@@ -145,6 +178,11 @@ export type MutationUpdateWorkloadArgs = {
 
 export type MutationUploadCurriculumArgs = {
   data: CurriculumUploadInput;
+};
+
+
+export type MutationVerifyCurriculumUploadArgs = {
+  curriculumUploadID: Scalars['ID'];
 };
 
 export type PreferenceType = {
@@ -248,6 +286,7 @@ export type SemesterCourseType = {
 };
 
 export type SemesterInput = {
+  courseLabs: Array<InputMaybe<CourseLabInput>>;
   courses: Array<InputMaybe<CourseInput>>;
   extra: Array<InputMaybe<Scalars['String']>>;
   /** number of semseter eg 1, 2, 3 */
@@ -280,6 +319,11 @@ export type UserType = {
   username?: Maybe<Scalars['String']>;
 };
 
+export type VerifyCurriculumUpload = {
+  __typename?: 'VerifyCurriculumUpload';
+  response?: Maybe<Scalars['Boolean']>;
+};
+
 export type WorkloadType = {
   __typename?: 'WorkloadType';
   designation?: Maybe<Scalars['String']>;
@@ -294,6 +338,20 @@ export type UploadCurriculumMutationVariables = Exact<{
 
 
 export type UploadCurriculumMutation = { __typename?: 'Mutation', uploadCurriculum?: { __typename?: 'UploadCurriculum', response?: { __typename?: 'CurriculumUploadType', id?: string | null, program?: string | null, year?: number | null, data?: any | null, uploadedOn?: any | null, isPopulated?: boolean | null } | null } | null };
+
+export type DeleteCurriculumUploadMutationVariables = Exact<{
+  CURRICULUMUPLOADID: Scalars['ID'];
+}>;
+
+
+export type DeleteCurriculumUploadMutation = { __typename?: 'Mutation', deleteCurriculumUpload?: { __typename?: 'DeleteCurriculumUpload', response?: boolean | null } | null };
+
+export type VerifyCurriculumUploadMutationVariables = Exact<{
+  CURRICULUMUPLOADID: Scalars['ID'];
+}>;
+
+
+export type VerifyCurriculumUploadMutation = { __typename?: 'Mutation', verifyCurriculumUpload?: { __typename?: 'VerifyCurriculumUpload', response?: boolean | null } | null };
 
 export type UpdateUserMutationVariables = Exact<{
   FIRSTNAME: Scalars['String'];
@@ -419,13 +477,10 @@ export default {
             "args": []
           },
           {
-            "name": "extra",
+            "name": "extraCourseLeftToAssign",
             "type": {
-              "kind": "LIST",
-              "ofType": {
-                "kind": "SCALAR",
-                "name": "Any"
-              }
+              "kind": "SCALAR",
+              "name": "Any"
             },
             "args": []
           },
@@ -438,10 +493,33 @@ export default {
             "args": []
           },
           {
+            "name": "selectedExtraCourses",
+            "type": {
+              "kind": "LIST",
+              "ofType": {
+                "kind": "OBJECT",
+                "name": "ExtraCourseType",
+                "ofType": null
+              }
+            },
+            "args": []
+          },
+          {
             "name": "sem",
             "type": {
               "kind": "SCALAR",
               "name": "Any"
+            },
+            "args": []
+          },
+          {
+            "name": "semesterExtraCourses",
+            "type": {
+              "kind": "LIST",
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "Any"
+              }
             },
             "args": []
           },
@@ -571,6 +649,14 @@ export default {
           },
           {
             "name": "id",
+            "type": {
+              "kind": "SCALAR",
+              "name": "Any"
+            },
+            "args": []
+          },
+          {
+            "name": "isExtra",
             "type": {
               "kind": "SCALAR",
               "name": "Any"
@@ -708,6 +794,92 @@ export default {
       },
       {
         "kind": "OBJECT",
+        "name": "DeleteCurriculumUpload",
+        "fields": [
+          {
+            "name": "response",
+            "type": {
+              "kind": "SCALAR",
+              "name": "Any"
+            },
+            "args": []
+          }
+        ],
+        "interfaces": []
+      },
+      {
+        "kind": "OBJECT",
+        "name": "ExtraCourseType",
+        "fields": [
+          {
+            "name": "code",
+            "type": {
+              "kind": "SCALAR",
+              "name": "Any"
+            },
+            "args": []
+          },
+          {
+            "name": "courseType",
+            "type": {
+              "kind": "SCALAR",
+              "name": "Any"
+            },
+            "args": []
+          },
+          {
+            "name": "credit",
+            "type": {
+              "kind": "SCALAR",
+              "name": "Any"
+            },
+            "args": []
+          },
+          {
+            "name": "hours",
+            "type": {
+              "kind": "SCALAR",
+              "name": "Any"
+            },
+            "args": []
+          },
+          {
+            "name": "l",
+            "type": {
+              "kind": "SCALAR",
+              "name": "Any"
+            },
+            "args": []
+          },
+          {
+            "name": "name",
+            "type": {
+              "kind": "SCALAR",
+              "name": "Any"
+            },
+            "args": []
+          },
+          {
+            "name": "p",
+            "type": {
+              "kind": "SCALAR",
+              "name": "Any"
+            },
+            "args": []
+          },
+          {
+            "name": "t",
+            "type": {
+              "kind": "SCALAR",
+              "name": "Any"
+            },
+            "args": []
+          }
+        ],
+        "interfaces": []
+      },
+      {
+        "kind": "OBJECT",
         "name": "FacultyType",
         "fields": [
           {
@@ -742,6 +914,26 @@ export default {
         "kind": "OBJECT",
         "name": "Mutation",
         "fields": [
+          {
+            "name": "deleteCurriculumUpload",
+            "type": {
+              "kind": "OBJECT",
+              "name": "DeleteCurriculumUpload",
+              "ofType": null
+            },
+            "args": [
+              {
+                "name": "curriculumUploadID",
+                "type": {
+                  "kind": "NON_NULL",
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "Any"
+                  }
+                }
+              }
+            ]
+          },
           {
             "name": "updateUser",
             "type": {
@@ -826,6 +1018,26 @@ export default {
             "args": [
               {
                 "name": "data",
+                "type": {
+                  "kind": "NON_NULL",
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "Any"
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "name": "verifyCurriculumUpload",
+            "type": {
+              "kind": "OBJECT",
+              "name": "VerifyCurriculumUpload",
+              "ofType": null
+            },
+            "args": [
+              {
+                "name": "curriculumUploadID",
                 "type": {
                   "kind": "NON_NULL",
                   "ofType": {
@@ -1436,6 +1648,21 @@ export default {
       },
       {
         "kind": "OBJECT",
+        "name": "VerifyCurriculumUpload",
+        "fields": [
+          {
+            "name": "response",
+            "type": {
+              "kind": "SCALAR",
+              "name": "Any"
+            },
+            "args": []
+          }
+        ],
+        "interfaces": []
+      },
+      {
+        "kind": "OBJECT",
         "name": "WorkloadType",
         "fields": [
           {
@@ -1499,6 +1726,28 @@ export const UploadCurriculumDocument = gql`
 
 export function useUploadCurriculumMutation() {
   return Urql.useMutation<UploadCurriculumMutation, UploadCurriculumMutationVariables>(UploadCurriculumDocument);
+};
+export const DeleteCurriculumUploadDocument = gql`
+    mutation deleteCurriculumUpload($CURRICULUMUPLOADID: ID!) {
+  deleteCurriculumUpload(curriculumUploadID: $CURRICULUMUPLOADID) {
+    response
+  }
+}
+    `;
+
+export function useDeleteCurriculumUploadMutation() {
+  return Urql.useMutation<DeleteCurriculumUploadMutation, DeleteCurriculumUploadMutationVariables>(DeleteCurriculumUploadDocument);
+};
+export const VerifyCurriculumUploadDocument = gql`
+    mutation verifyCurriculumUpload($CURRICULUMUPLOADID: ID!) {
+  verifyCurriculumUpload(curriculumUploadID: $CURRICULUMUPLOADID) {
+    response
+  }
+}
+    `;
+
+export function useVerifyCurriculumUploadMutation() {
+  return Urql.useMutation<VerifyCurriculumUploadMutation, VerifyCurriculumUploadMutationVariables>(VerifyCurriculumUploadDocument);
 };
 export const UpdateUserDocument = gql`
     mutation updateUser($FIRSTNAME: String!, $LASTNAME: String!) {

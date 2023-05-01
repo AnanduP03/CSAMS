@@ -136,9 +136,7 @@ class Batch(models.Model):
 
     def add_extra(self, ce: CurriculumExtras):
         bce, new = BatchCurriculumExtra.objects.get_or_create(batch=self, extra=ce)
-        print(bce.batch, bce.extra, bce.count)
         if not new:
-            print("Not new")
             bce.count += 1
             bce.save()
     
@@ -153,6 +151,13 @@ class Batch(models.Model):
             bce.delete()
     
     def add_selected_extra_course(self, ec: ExtraCourse):
+        qs = BatchCurriculumExtra.objects.filter(batch=self, extra=ec.course_type)
+        exisiting_count = self.selected_extra_courses.filter(course_type=ec.course_type).count()
+        if not qs.exists():
+            raise Exception("Invalid Extra Course for semester")
+        if exisiting_count >= qs.first().count:
+            raise Exception("Invalid Extra Course for semester, maximum count already reached!")
+            
         self.selected_extra_courses.add(ec)
         self.save()
     

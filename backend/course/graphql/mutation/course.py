@@ -1,13 +1,99 @@
 
 from django.forms import ValidationError
 import graphene
+from django.db import transaction
 
-from .type import CurriculumUploadInput, SemesterInput, CourseInput, ExtraInput
+from .type import CurriculumUploadInput, SemesterInput, CourseInput, ExtraInput, CourseLabMapInput
 from course.graphql.types.course import CurriculumUploadType
 from backend.api.decorator import login_required, resolve_user, staff_privilege_required
-from course.models import CurriculumUpload, Program, Curriculum
+from backend.api import APIException
+from course.models import CurriculumUpload, Program, Curriculum, Batch, Course, CurriculumExtras, ExtraCourse, CourseLab
+from typing import List
+
+class VerifyCurriculumUpload(graphene.Mutation):
+    class Arguments:
+        curriculumUploadID = graphene.ID(required=True)
+
+    response = graphene.Field(graphene.Boolean())
+
+    @login_required
+    @resolve_user
+    @staff_privilege_required
+    def mutate(self, info, curriculumUploadID: graphene.ID):
+        try:
+            c : CurriculumUpload = CurriculumUpload.objects.get(id=curriculumUploadID)
+        except CurriculumUpload.DoesNotExist:
+            raise APIException(message="Invalid Argument, Curriculum Upload Does not exist")
+        
+        if c.is_populated or Curriculum.objects.filter(program=c.program, year=c.year).exists():
+            raise APIException(message="Curriculum already uploaded", code="CURRICULUM_EXISTS")
+        
+
+        semesters_data = c.data['semesters']
+        curriculum_extras = c.data['extra']
+
+        try:
+            with transaction.atomic():
+                curriculum = Curriculum.objects.create(program=c.program, year=c.year)
+                c_extras:List[CurriculumExtras] = []
+                for e in curriculum_extras:
+                    is_elective = e['isElective']
+                    ce = CurriculumExtras.objects.create(curriculum=curriculum, name=e['name'])
+                    c_extras.append(ce)
+                    for ec in e['courses']:
+                        ExtraCourse.objects.create(code=ec['code'].strip(),name=ec['name'], l=ec['L'], t=ec['T'], p=ec['P'], credit=ec['C'], hours=0, course_type=ce, is_elective=is_elective)
+                
+
+                for year_index in range(c.program.year):
+                    for sem_index in range(1, (c.program.year*2)+1):
+                        for sem in semesters_data:
+                            if sem['sem'] == sem_index:
+                                break
+                        if sem['sem'] != sem_index:
+                            raise APIException("Invalid Curriculum Data")
+
+                        batch = Batch.objects.create(curriculum=curriculum, year=year_index+c.year, sem=int(sem['sem']))
+                        courses = {}
+                        for cr in sem['courses']:
+                            courses[cr['code']] = Course.objects.create(code=cr['code'], name=cr['name'], batch=batch, l=cr['L'], t=cr['T'], p=cr['P'], credit=cr['C'], hours=0)
+                        for cl in sem['courseLabs']:
+                            CourseLab.objects.create(course=courses[cl['courseCode']], lab=courses[cl['labCode']])
+
+                        sem_extras = sem['extra']
+                        for extra in sem_extras:
+                            for c_extra in c_extras:
+                                c_extra:CurriculumExtras = c_extra
+                                if extra == c_extra.name:
+                                    batch.add_extra(c_extra)
+                                    continue
+                c.is_populated = True
+                c.save()                              
+                        #     CurriculumExtras.objects.create(curriculum=curriculum, name=)
 
 
+        except Exception as e:
+            raise APIException(message=e)
+        return VerifyCurriculumUpload(response=True)
+
+
+class DeleteCurriculumUpload(graphene.Mutation):
+    class Arguments:
+        curriculumUploadID = graphene.ID(required=True)
+    response = graphene.Field(graphene.Boolean())
+
+    @login_required
+    @resolve_user
+    @staff_privilege_required
+    def mutate(self, info, curriculumUploadID: graphene.ID):
+        try:
+            c : CurriculumUpload = CurriculumUpload.objects.get(id=curriculumUploadID)
+        except CurriculumUpload.DoesNotExist:
+            raise APIException(message="Invalid Argument, Curriculum Upload Does not exist")
+        if c.is_populated:
+            raise APIException(message="Curriculum is already populated, cannot delete verified curriculum")
+        c.delete()
+        return DeleteCurriculumUpload(response=True)
+    
 class UploadCurriculum(graphene.Mutation):
     class Arguments:
         data = graphene.Argument(CurriculumUploadInput, required=True)
@@ -60,6 +146,7 @@ class UploadCurriculum(graphene.Mutation):
                 assert isinstance(s, SemesterInput), "Invalid Semester"
                 assert s['sem'] > 0, "Invalid semester number"
                 sem_nums.append(s.sem)
+                courseCodes = {}
                 if s['extra'] is not None:
                     for extra in s['extra']:
                         extra = extra.strip()
@@ -68,7 +155,16 @@ class UploadCurriculum(graphene.Mutation):
                 assert s['courses'] and len(s['courses']) > 0, f"Courses not found in semester S{s.sem}"
                 for course in s['courses']:
                     assert isinstance(course, CourseInput), f"Invalid Course type found in S{s.sem}"
+                    courseCodes[course['code']] = True
                     UploadCurriculum._check_course(course)
+                if s['courseLabs'] is not None:
+                    for cl in s['courseLabs']:
+                        assert 'courseCode' in cl and 'labCode' in cl, 'invalid course/lab code'
+                        assert cl['labCode'][-2] == '8', "invalid lab component"
+                        assert cl['courseCode'][-2] != '8', "invalid course component"
+                        assert cl['labCode'] in courseCodes, "Course/Lab component not found in semester courses"
+                        assert cl['courseCode'] in courseCodes, "Course/Lab component not found in semester courses"
+            
             if len(extras)>0:
                 unique_extras = list(set(extras))
                 assert len(unique_extras) == len(data['extra']), "Extra courses mismatch"
@@ -90,11 +186,12 @@ class UploadCurriculum(graphene.Mutation):
                 # assert Curriculum.objects.filter(program__name=data.program).order_by('year').last()
         except AssertionError as e:
             raise ValidationError(str(e))
-        print(upload)
         return UploadCurriculum(response=upload)
 
 class CourseMutation(graphene.ObjectType):
     upload_curriculum = UploadCurriculum.Field()
+    delete_curriculum_upload = DeleteCurriculumUpload.Field()
+    verify_curriculum_upload = VerifyCurriculumUpload.Field()
 
 __all__ = [
     'CourseMutation'
